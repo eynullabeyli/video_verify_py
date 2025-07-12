@@ -10,8 +10,9 @@ from datetime import datetime
 video_path = 'yusif.mp4'
 reference_image = 'yusifnew.jpg'
 
+start_time_dt = datetime.now()
 start_time = time.time()
-start_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+start_time_str = start_time_dt.strftime('%Y-%m-%d %H:%M:%S')
 
 cap = cv2.VideoCapture(video_path)
 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -77,8 +78,9 @@ cap.release()
 if os.path.exists(temp_frame_path):
     os.remove(temp_frame_path)
 
+end_time_dt = datetime.now()
 end_time = time.time()
-end_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+end_time_str = end_time_dt.strftime('%Y-%m-%d %H:%M:%S')
 elapsed_time = end_time - start_time
 
 if total_sampled > 0:
