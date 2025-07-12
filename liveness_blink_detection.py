@@ -7,7 +7,7 @@ import contextlib
 import time
 
 # Set video source: 0 for webcam or provide a video file path
-video_path = 'video.mp4'  # Use video file instead of webcam
+video_path = 'yusif.mp4'  # Use video file instead of webcam
 cap = cv2.VideoCapture(video_path)
 
 emotions = []
@@ -98,13 +98,13 @@ else:
 print(f"Summary: {most_common_emotion}, {avg_age}, {most_common_gender}, {most_common_race}")
 print(f"Total elapsed time: {elapsed_time:.2f} seconds")
 
-# Similarity check with image.jpg using only ArcFace
+# Similarity check with yusif.jpeg using only ArcFace
 if first_face_frame is not None:
-    temp_frame_path = "_temp_first_face.jpg"
+    temp_frame_path = "_temp_first_face.jpeg"
     cv2.imwrite(temp_frame_path, first_face_frame)
     try:
         with open(os.devnull, 'w') as fnull, contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
-            verification = DeepFace.verify(temp_frame_path, "image.jpg", enforce_detection=False, model_name="ArcFace")
+            verification = DeepFace.verify(temp_frame_path, "yusif.jpeg", enforce_detection=False, model_name="ArcFace")
         verified = verification.get("verified", False)
         distance = verification.get("distance", None)
         model_name = verification.get("model", "ArcFace")
