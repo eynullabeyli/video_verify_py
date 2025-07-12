@@ -33,6 +33,9 @@ best_verified = None
 best_idx = -1
 best_threshold = None
 
+total_sampled = len(frame_indices)
+live_face_count = 0
+
 for idx, frame_num in enumerate(frame_indices):
     cap = cv2.VideoCapture(video_path)
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
@@ -51,6 +54,7 @@ for idx, frame_num in enumerate(frame_indices):
             analysis = analysis[0]
         # If a face is detected, proceed to similarity check
         live_face_detected = True
+        live_face_count += 1
         cv2.imwrite(temp_frame_path, frame)
         try:
             with open(os.devnull, 'w') as fnull, contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
@@ -79,12 +83,24 @@ end_time = time.time()
 end_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 elapsed_time = end_time - start_time
 
+if total_sampled > 0:
+    liveness_percentage = (live_face_count / total_sampled) * 100
+else:
+    liveness_percentage = 0
+print(f"Liveness percentage: {liveness_percentage:.1f}% ({live_face_count} of {total_sampled} frames)")
 if live_face_detected:
     print("Live face detected in at least one frame.")
 else:
     print("No live face detected in any sampled frame.")
 if best_similarity >= 0:
-    print(f"[ArcFace] Highest similarity: {best_similarity:.1f}%, distance={best_distance}, verified={best_verified}, threshold={best_threshold}")
+    result = {
+        "similarity": f"{best_similarity:.1f}%",
+        "distance": best_distance,
+        "verified": best_verified,
+        "threshold": best_threshold,
+        "liveness": f"{liveness_percentage:.1f}%"
+    }
+    print(result)
 else:
     print("No valid face frames for similarity check.")
 print(f"Start time: {start_time_str}")
