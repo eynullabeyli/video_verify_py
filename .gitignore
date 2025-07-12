@@ -72,3 +72,4 @@ coverage.xml
 # DeepFace cache
 /.deepface_cache/ 
 deepface_env/
+tmp
