@@ -4,6 +4,7 @@ from app.services.liveness_service import liveness_and_similarity
 import shutil
 import os
 import uuid
+import mimetypes
 
 app = FastAPI()
 
@@ -12,6 +13,14 @@ async def liveness_and_similarity_check(
     video_file: UploadFile = File(...),
     reference_image: UploadFile = File(...)
 ):
+    # Validate file types
+    video_mime = video_file.content_type
+    image_mime = reference_image.content_type
+    if not video_mime or not video_mime.startswith("video/"):
+        raise HTTPException(status_code=400, detail="video_file must be a video type.")
+    if not image_mime or not image_mime.startswith("image/"):
+        raise HTTPException(status_code=400, detail="reference_image must be an image type.")
+
     # Save uploaded files to tmp directory
     tmp_dir = "tmp"
     os.makedirs(tmp_dir, exist_ok=True)
