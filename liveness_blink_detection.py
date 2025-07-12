@@ -85,6 +85,12 @@ while True:
         rightEAR = eye_aspect_ratio(rightEye)
         EYE_AR_DIFF_THRESH = 0.15  # Maximum allowed difference between left and right EAR
 
+        # Calculate eye center distance for occlusion detection
+        left_eye_center = np.mean(leftEye, axis=0)
+        right_eye_center = np.mean(rightEye, axis=0)
+        eye_distance = np.linalg.norm(left_eye_center - right_eye_center)
+        EYE_DISTANCE_MIN = 30  # Minimum plausible distance between eyes (adjust as needed)
+
         # Calculate mouth area and aspect ratio for plausibility
         mouth_area = float(cv2.contourArea(mouth))
         mouth_width = np.linalg.norm(mouth[0] - mouth[6])
@@ -99,12 +105,15 @@ while True:
             leftEye_area > EYE_AREA_THRESH and
             rightEye_area > EYE_AREA_THRESH and
             min(leftEye_area, rightEye_area) / max(leftEye_area, rightEye_area) > EYE_AREA_RATIO_THRESH and
-            abs(leftEAR - rightEAR) < EYE_AR_DIFF_THRESH
+            abs(leftEAR - rightEAR) < EYE_AR_DIFF_THRESH and
+            eye_distance > EYE_DISTANCE_MIN
         )
         mouth_plausible = (
             mouth_area > MOUTH_AREA_THRESH and
             MOUTH_AR_MIN < mouth_aspect_ratio < MOUTH_AR_MAX
         )
+        if eye_distance <= EYE_DISTANCE_MIN:
+            print("Face likely occluded: eyes too close together.")
 
         # Draw eye contours
         cv2.polylines(frame, [cv2.convexHull(leftEye)], True, (0,255,0), 1)
