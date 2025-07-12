@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     volumes:
       - whisper-model-cache:/root/.cache
-    mem_limit: 8g
+    mem_limit: 10g
     cpus: 4
 
 volumes:
