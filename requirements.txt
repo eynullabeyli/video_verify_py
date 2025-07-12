@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+deepface
+opencv-python
+ffmpeg-python
+openai-whisper
+python-multipart
+mimetypes
+pydantic
+shutil
+uuid 
