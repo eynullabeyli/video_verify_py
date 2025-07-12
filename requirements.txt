@@ -5,4 +5,7 @@ opencv-python
 ffmpeg-python
 openai-whisper
 python-multipart
-pydantic 
+pydantic
+numpy<2
+pandas<2.2.2
+pyarrow<15 
