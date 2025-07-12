@@ -5,6 +5,7 @@ import os
 import contextlib
 import time
 from datetime import datetime
+import uuid
 
 # Set video source and reference image
 video_path = 'yusif.mp4'
@@ -32,7 +33,11 @@ best_distance = None
 best_verified = None
 best_idx = -1
 best_threshold = None
-temp_frame_path = "_temp_face_for_similarity.jpg"
+
+# Prepare tmp directory and temp file name
+tmp_dir = 'tmp'
+os.makedirs(tmp_dir, exist_ok=True)
+temp_frame_path = os.path.join(tmp_dir, f"{uuid.uuid4()}.jpg")
 live_face_count = 0
 total_sampled = len(frame_indices)
 
