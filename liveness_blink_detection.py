@@ -17,28 +17,32 @@ genders = []
 races = []
 first_face_frame = None
 
-frame_count = 0
-frame_skip = 1  # Analyze every frame for maximum accuracy
-max_frames = 11  # Only process the first 11 frames
+max_frames = 11  # Number of frames to sample evenly across the video
 
 start_time = time.time()
 start_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-while True:
-    if frame_count >= max_frames:
-        break
+# Get total number of frames in the video
+cap = cv2.VideoCapture(video_path)
+total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+cap.release()
+
+# Calculate frame indices to sample
+if max_frames > total_frames:
+    frame_indices = list(range(total_frames))
+else:
+    frame_indices = [int(i * total_frames / max_frames) for i in range(max_frames)]
+
+for idx, frame_num in enumerate(frame_indices):
+    cap = cv2.VideoCapture(video_path)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
     ret, frame = cap.read()
+    cap.release()
     if not ret:
-        break
-
-    frame_count += 1
-    if frame_count % frame_skip != 0:
         continue
-
-    # Print progress every 50 frames
-    if frame_count % 50 == 0:
-        print(f"Processed {frame_count} frames...")
-
+    # Print progress every 2 frames
+    if (idx + 1) % 2 == 0:
+        print(f"Processed {idx + 1} of {len(frame_indices)} sampled frames...")
     # Analyze frame for available DeepFace actions
     try:
         with open(os.devnull, 'w') as fnull, contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
@@ -54,8 +58,6 @@ while True:
             dominant_gender = max(gender, key=lambda k: gender[k])
         else:
             dominant_gender = gender
-        # Compose a short summary
-        summary = f"{emotion}, {age}, {dominant_gender}, {race}"
         # Collect for summary
         emotions.append(emotion)
         if age is not None and isinstance(age, (int, float)):
@@ -66,9 +68,7 @@ while True:
         if first_face_frame is None and emotion != "unknown":
             first_face_frame = frame.copy()
     except Exception as e:
-        summary = f"error: {e}"
-
-    # (No GUI code)
+        continue
 
 cap.release()
 cv2.destroyAllWindows()
@@ -85,9 +85,9 @@ if emotions:
         # Only compare if a face was detected (emotion != 'unknown')
         if emotion == 'unknown':
             continue
-        # Rewind video to get the frame
+        # Get the corresponding sampled frame
+        frame_num = frame_indices[idx]
         cap = cv2.VideoCapture(video_path)
-        frame_num = (idx + 1) * frame_skip
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
         ret, frame = cap.read()
         cap.release()
