@@ -24,6 +24,10 @@ TOTAL = 0
 HEAD_TURN_TOTAL = 0
 MOUTH_OPEN_TOTAL = 0
 
+# Initialize eye area variables for occlusion detection
+leftEye_area = 0.0
+rightEye_area = 0.0
+
 # Initialize dlib's face detector and landmark predictor
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
@@ -72,6 +76,36 @@ while True:
         rightEAR = eye_aspect_ratio(rightEye)
         ear = (leftEAR + rightEAR) / 2.0
 
+        # Calculate eye areas for occlusion detection
+        leftEye_area = float(cv2.contourArea(leftEye))
+        rightEye_area = float(cv2.contourArea(rightEye))
+        EYE_AREA_THRESH = 10  # Minimum area for an eye to be considered visible (adjust as needed)
+        EYE_AREA_RATIO_THRESH = 0.5  # Minimum ratio between left and right eye area (for symmetry)
+        leftEAR = eye_aspect_ratio(leftEye)
+        rightEAR = eye_aspect_ratio(rightEye)
+        EYE_AR_DIFF_THRESH = 0.15  # Maximum allowed difference between left and right EAR
+
+        # Calculate mouth area and aspect ratio for plausibility
+        mouth_area = float(cv2.contourArea(mouth))
+        mouth_width = np.linalg.norm(mouth[0] - mouth[6])
+        mouth_height = np.linalg.norm(mouth[3] - mouth[9])
+        mouth_aspect_ratio = mouth_height / (mouth_width + 1e-6)
+        MOUTH_AREA_THRESH = 20  # Minimum area for mouth to be considered visible
+        MOUTH_AR_MIN = 0.2  # Minimum plausible aspect ratio for mouth
+        MOUTH_AR_MAX = 1.0  # Maximum plausible aspect ratio for mouth
+
+        # Plausibility checks
+        eyes_plausible = (
+            leftEye_area > EYE_AREA_THRESH and
+            rightEye_area > EYE_AREA_THRESH and
+            min(leftEye_area, rightEye_area) / max(leftEye_area, rightEye_area) > EYE_AREA_RATIO_THRESH and
+            abs(leftEAR - rightEAR) < EYE_AR_DIFF_THRESH
+        )
+        mouth_plausible = (
+            mouth_area > MOUTH_AREA_THRESH and
+            MOUTH_AR_MIN < mouth_aspect_ratio < MOUTH_AR_MAX
+        )
+
         # Draw eye contours
         cv2.polylines(frame, [cv2.convexHull(leftEye)], True, (0,255,0), 1)
         cv2.polylines(frame, [cv2.convexHull(rightEye)], True, (0,255,0), 1)
@@ -80,50 +114,61 @@ while True:
         cv2.polylines(frame, [cv2.convexHull(nose)], True, (0,0,255), 1)
 
         # --- Blink Detection (existing) ---
-        if ear < EYE_AR_THRESH:
-            COUNTER += 1
-        else:
-            if COUNTER >= EYE_AR_CONSEC_FRAMES:
-                TOTAL += 1
-                print(f"Blinked! Total blinks: {TOTAL}")
-            COUNTER = 0
+        if eyes_plausible:
+            if ear < EYE_AR_THRESH:
+                COUNTER += 1
+            else:
+                if COUNTER >= EYE_AR_CONSEC_FRAMES:
+                    TOTAL += 1
+                    print(f"Blinked! Total blinks: {TOTAL}")
+                COUNTER = 0
 
         # --- Head Turn Detection ---
-        nose_x = np.mean(nose[:, 0])
-        if initial_nose_x is None:
-            initial_nose_x = nose_x
-        else:
-            if abs(nose_x - initial_nose_x) > HEAD_TURN_THRESH:
-                HEAD_TURN_TOTAL += 1
-                print(f"Head turned! Total head turns: {HEAD_TURN_TOTAL}")
-                initial_nose_x = nose_x  # reset reference to avoid multiple counts for same turn
+        if eyes_plausible:
+            nose_x = np.mean(nose[:, 0])
+            if initial_nose_x is None:
+                initial_nose_x = nose_x
+            else:
+                if abs(nose_x - initial_nose_x) > HEAD_TURN_THRESH:
+                    HEAD_TURN_TOTAL += 1
+                    print(f"Head turned! Total head turns: {HEAD_TURN_TOTAL}")
+                    initial_nose_x = nose_x  # reset reference to avoid multiple counts for same turn
 
         # --- Mouth Open Detection ---
-        # Use vertical distance between upper and lower lip
-        top_lip = mouth[3]
-        bottom_lip = mouth[9]
-        mouth_open_dist = np.linalg.norm(top_lip - bottom_lip)
-        if mouth_open_dist > MOUTH_OPEN_THRESH:
-            MOUTH_OPEN_TOTAL += 1
-            print(f"Mouth opened! Total mouth opens: {MOUTH_OPEN_TOTAL}")
-            # Wait until mouth closes to count again
-            while True:
-                ret2, frame2 = cap.read()
-                if not ret2:
-                    break
-                total_frames += 1
-                gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
-                rects2 = detector(gray2, 0)
-                if len(rects2) == 0:
-                    break
-                shape2 = predictor(gray2, rects2[0])
-                shape2 = face_utils.shape_to_np(shape2)
-                mouth2 = shape2[mStart:mEnd]
-                top_lip2 = mouth2[3]
-                bottom_lip2 = mouth2[9]
-                mouth_open_dist2 = np.linalg.norm(top_lip2 - bottom_lip2)
-                if mouth_open_dist2 < MOUTH_OPEN_THRESH:
-                    break
+        if mouth_plausible:
+            # Use vertical distance between upper and lower lip
+            top_lip = mouth[3]
+            bottom_lip = mouth[9]
+            mouth_open_dist = np.linalg.norm(top_lip - bottom_lip)
+            if mouth_open_dist > MOUTH_OPEN_THRESH:
+                MOUTH_OPEN_TOTAL += 1
+                print(f"Mouth opened! Total mouth opens: {MOUTH_OPEN_TOTAL}")
+                # Wait until mouth closes to count again
+                while True:
+                    ret2, frame2 = cap.read()
+                    if not ret2:
+                        break
+                    total_frames += 1
+                    gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+                    rects2 = detector(gray2, 0)
+                    if len(rects2) == 0:
+                        break
+                    shape2 = predictor(gray2, rects2[0])
+                    shape2 = face_utils.shape_to_np(shape2)
+                    mouth2 = shape2[mStart:mEnd]
+                    mouth_area2 = float(cv2.contourArea(mouth2))
+                    mouth_width2 = np.linalg.norm(mouth2[0] - mouth2[6])
+                    mouth_height2 = np.linalg.norm(mouth2[3] - mouth2[9])
+                    mouth_aspect_ratio2 = mouth_height2 / (mouth_width2 + 1e-6)
+                    mouth_plausible2 = (
+                        mouth_area2 > MOUTH_AREA_THRESH and
+                        MOUTH_AR_MIN < mouth_aspect_ratio2 < MOUTH_AR_MAX
+                    )
+                    top_lip2 = mouth2[3]
+                    bottom_lip2 = mouth2[9]
+                    mouth_open_dist2 = np.linalg.norm(top_lip2 - bottom_lip2)
+                    if mouth_open_dist2 < MOUTH_OPEN_THRESH or not mouth_plausible2:
+                        break
 
         cv2.putText(frame, f"Blinks: {TOTAL}", (10,30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
@@ -136,12 +181,21 @@ while True:
 
     # If enough blinks detected, assume live
     if TOTAL >= live_threshold:
-        # Only confirm liveness if both eyes are open and face is fully visible
-        if len(rects) > 0 and len(shape) == 68 and leftEAR > EYE_AR_THRESH and rightEAR > EYE_AR_THRESH:
-            print("Liveness confirmed (enough blinks detected, both eyes open, and face fully visible)")
+        # Only confirm liveness if both eyes are open, both eyes are visible, and face is fully visible
+        if (
+            len(rects) > 0 and
+            len(shape) == 68 and
+            leftEAR > EYE_AR_THRESH and
+            rightEAR > EYE_AR_THRESH and
+            leftEye_area > EYE_AREA_THRESH and
+            rightEye_area > EYE_AREA_THRESH and
+            eyes_plausible and
+            mouth_plausible
+        ):
+            print("Liveness confirmed (enough blinks detected, both eyes open, both eyes visible, face fully visible, and plausible facial features)")
             break
         else:
-            print("Liveness not confirmed: face not fully visible, covered, or one/both eyes are closed.")
+            print("Liveness not confirmed: face not fully visible, covered, one/both eyes are closed, one/both eyes are not visible, or facial features are implausible.")
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
