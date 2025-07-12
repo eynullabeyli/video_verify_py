@@ -1,25 +1,12 @@
 import cv2
 from deepface import DeepFace
-import sys
 import os
 import contextlib
 import time
 from datetime import datetime
 import uuid
 import mimetypes
-from fastapi import FastAPI, HTTPException, Request
-from pydantic import BaseModel
-from fastapi.responses import JSONResponse
 
-# FastAPI app
-app = FastAPI()
-
-# Set video source and reference image
-
-video_path = 'assets/yusif.mp4'
-reference_image = 'assets/yusiftest.jpg'
-
-# Main logic as a function
 def liveness_and_similarity(video_path, reference_image):
     # Check if input files exist
     if not os.path.isfile(video_path):
@@ -125,22 +112,4 @@ def liveness_and_similarity(video_path, reference_image):
         }
         return result
     else:
-        return {"error": "No valid face frames for similarity check."}
-
-# Pydantic model for request
-class LivenessRequest(BaseModel):
-    video_path: str
-    reference_image: str
-
-# POST endpoint
-@app.post("/liveness-check")
-async def liveness_check(request: LivenessRequest):
-    result = liveness_and_similarity(request.video_path, request.reference_image)
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return JSONResponse(content=result)
-
-# If run as a script, keep CLI functionality
-if __name__ == "__main__":
-    result = liveness_and_similarity(video_path, reference_image)
-    print(result)
+        return {"error": "No valid face frames for similarity check."} 
