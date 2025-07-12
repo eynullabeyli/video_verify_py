@@ -64,7 +64,7 @@ def video_verification(video_path, reference_image):
         (
             ffmpeg
             .input(video_path)
-            .output(audio_path, format='mp3', acodec='mp3', ac=1, ar='16000')
+            .output(audio_path, format='mp3', acodec='mp3', ac=2, ar='44100', audio_bitrate='320k')
             .overwrite_output()
             .run(quiet=True)
         )
