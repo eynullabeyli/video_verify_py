@@ -8,6 +8,7 @@ import mimetypes
 from typing import Optional
 import logging
 import traceback
+from io import BytesIO
 
 logging.basicConfig(level=logging.INFO)
 
@@ -58,28 +59,15 @@ async def video_verification_check(
         logging.error("[API] Invalid reference_image type: %s", image_mime)
         raise HTTPException(status_code=400, detail="reference_image must be an image type.")
 
-    # Save uploaded files to tmp directory
-    tmp_dir = "tmp"
-    os.makedirs(tmp_dir, exist_ok=True)
-    video_path = os.path.join(tmp_dir, f"{uuid.uuid4()}_{video_file.filename}")
-    ref_path = os.path.join(tmp_dir, f"{uuid.uuid4()}_{reference_image.filename}")
+    # Read uploaded files into memory
+    video_bytes = await video_file.read()
+    image_bytes = await reference_image.read()
+    logging.info(f"[API] Read files into memory: video={len(video_bytes)} bytes, image={len(image_bytes)} bytes")
 
-    with open(video_path, "wb") as f:
-        shutil.copyfileobj(video_file.file, f)
-    with open(ref_path, "wb") as f:
-        shutil.copyfileobj(reference_image.file, f)
-
-    logging.info(f"[API] Saved files: video={video_path}, ref={ref_path}")
-
-    # Call the service for video verification
+    # Call the service for video verification (pass bytes instead of file paths)
     logging.info("[API] Calling video_verification service...")
-    result = video_verification(video_path, ref_path, transcribe_reference)
+    result = video_verification(video_bytes, image_bytes, transcribe_reference)
     logging.info("[API] video_verification service returned.")
-
-    # Clean up uploaded files
-    os.remove(video_path)
-    os.remove(ref_path)
-    logging.info(f"[API] Cleaned up files: video={video_path}, ref={ref_path}")
 
     if "error" in result:
         logging.error(f"[API] Service returned error: {result['error']}")
