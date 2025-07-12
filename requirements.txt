@@ -8,4 +8,5 @@ python-multipart
 pydantic
 numpy<2
 pandas<2.2.2
-pyarrow<15 
+pyarrow<15
+tf-keras 
