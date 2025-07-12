@@ -21,6 +21,10 @@ reference_image = 'assets/yusiftest.jpg'
 
 # Main logic as a function
 def liveness_and_similarity(video_path, reference_image):
+    """
+    Perform liveness and similarity check on the given video and reference image.
+    Returns a dictionary with similarity, distance, verified, threshold, liveness percentage, and timing info.
+    """
     # Check if input files exist
     if not os.path.isfile(video_path):
         return {"error": f"Video file not found: {video_path}"}
@@ -128,13 +132,13 @@ def liveness_and_similarity(video_path, reference_image):
         return {"error": "No valid face frames for similarity check."}
 
 # Pydantic model for request
-class LivenessRequest(BaseModel):
+class LivenessAndSimilarityRequest(BaseModel):
     video_path: str
     reference_image: str
 
 # POST endpoint
-@app.post("/liveness-check")
-async def liveness_check(request: LivenessRequest):
+@app.post("/liveness-and-similarity-check")
+async def liveness_and_similarity_check(request: LivenessAndSimilarityRequest):
     result = liveness_and_similarity(request.video_path, request.reference_image)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])

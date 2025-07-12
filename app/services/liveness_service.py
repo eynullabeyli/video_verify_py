@@ -8,6 +8,10 @@ import uuid
 import mimetypes
 
 def liveness_and_similarity(video_path, reference_image):
+    """
+    Perform liveness and similarity check on the given video and reference image.
+    Returns a dictionary with similarity, distance, verified, threshold, liveness percentage, and timing info.
+    """
     # Check if input files exist
     if not os.path.isfile(video_path):
         return {"error": f"Video file not found: {video_path}"}

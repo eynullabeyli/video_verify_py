@@ -7,8 +7,8 @@ import uuid
 
 app = FastAPI()
 
-@app.post("/liveness-check")
-async def liveness_check(
+@app.post("/liveness-and-similarity-check")
+async def liveness_and_similarity_check(
     video_file: UploadFile = File(...),
     reference_image: UploadFile = File(...)
 ):
@@ -23,7 +23,7 @@ async def liveness_check(
     with open(ref_path, "wb") as f:
         shutil.copyfileobj(reference_image.file, f)
 
-    # Call the service
+    # Call the service for liveness and similarity check
     result = liveness_and_similarity(video_path, ref_path)
 
     # Clean up uploaded files
