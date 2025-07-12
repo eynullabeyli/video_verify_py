@@ -73,3 +73,4 @@ coverage.xml
 /.deepface_cache/ 
 deepface_env/
 tmp
+.DS_Store
