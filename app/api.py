@@ -1,24 +1,24 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
-from app.services.liveness_service import liveness_and_similarity
+from app.services.video_verification_service import video_verification
 import shutil
 import os
 import uuid
 import mimetypes
 
 app = FastAPI(
-    title="Liveness and Similarity API",
-    description="API for liveness and face similarity checks using video and reference image uploads.",
+    title="Video Verification API",
+    description="API for video verification: liveness check, face similarity, and video-to-text transcription using video and reference image uploads.",
     version="1.0.0"
 )
 
 @app.post(
-    "/liveness-and-similarity-check",
-    summary="Liveness and Similarity Check",
-    description="Upload a video file and a reference image. The video_file must be a video type (e.g., mp4, avi), and the reference_image must be an image type (e.g., jpg, png). The service will check for liveness and face similarity.",
-    tags=["Liveness and Similarity"]
+    "/video-verification-check",
+    summary="Video Verification (Liveness, Similarity, Transcription)",
+    description="Upload a video file and a reference image. The video_file must be a video type (e.g., mp4, avi), and the reference_image must be an image type (e.g., jpg, png). The service will check for liveness, face similarity, and transcribe the video.",
+    tags=["Video Verification"]
 )
-async def liveness_and_similarity_check(
+async def video_verification_check(
     video_file: UploadFile = File(
         ..., 
         description="Video file (must be a video type, e.g., mp4, avi)",
@@ -49,8 +49,8 @@ async def liveness_and_similarity_check(
     with open(ref_path, "wb") as f:
         shutil.copyfileobj(reference_image.file, f)
 
-    # Call the service for liveness and similarity check
-    result = liveness_and_similarity(video_path, ref_path)
+    # Call the service for video verification
+    result = video_verification(video_path, ref_path)
 
     # Clean up uploaded files
     os.remove(video_path)

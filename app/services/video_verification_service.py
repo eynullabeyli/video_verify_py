@@ -9,9 +9,9 @@ import mimetypes
 import ffmpeg
 import whisper
 
-def liveness_and_similarity(video_path, reference_image):
+def video_verification(video_path, reference_image):
     """
-    Perform liveness and similarity check on the given video and reference image.
+    Perform video verification: liveness check, face similarity, and transcription on the given video and reference image.
     Returns a dictionary with similarity, distance, verified, threshold, liveness percentage, timing info, and transcription.
     """
     # Check if input files exist
@@ -68,7 +68,7 @@ def liveness_and_similarity(video_path, reference_image):
             .run(quiet=True)
         )
         model = whisper.load_model("base")
-        result = model.transcribe(audio_path)
+        result = model.transcribe(audio_path, language='az')
         transcription = result.get("text", None)
         if os.path.exists(audio_path):
             os.remove(audio_path)
