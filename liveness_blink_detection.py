@@ -16,8 +16,8 @@ genders = []
 races = []
 first_face_frame = None
 
-frame_count = 11
-frame_skip = 5  # Analyze every 10th frame for much faster processing
+frame_count = 0
+frame_skip = 10  # Analyze every 10th frame for much faster processing
 
 start_time = time.time()
 
@@ -98,27 +98,50 @@ else:
 print(f"Summary: {most_common_emotion}, {avg_age}, {most_common_gender}, {most_common_race}")
 print(f"Total elapsed time: {elapsed_time:.2f} seconds")
 
-# Similarity check with yusif.jpeg using only ArcFace
-if first_face_frame is not None:
-    temp_frame_path = "_temp_first_face.jpeg"
-    cv2.imwrite(temp_frame_path, first_face_frame)
-    try:
-        with open(os.devnull, 'w') as fnull, contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
-            verification = DeepFace.verify(temp_frame_path, "yusif.jpeg", enforce_detection=False, model_name="ArcFace")
-        verified = verification.get("verified", False)
-        distance = verification.get("distance", None)
-        model_name = verification.get("model", "ArcFace")
-        threshold = verification.get("threshold", None)
-        if distance is not None and threshold is not None:
-            try:
-                similarity_pct = max(0, (float(threshold) - float(distance)) / float(threshold) * 100)
-            except Exception:
-                similarity_pct = 0
-            print(f"[{model_name}] verified={verified}, distance={distance}, similarity={similarity_pct:.1f}%, threshold={threshold}")
-        else:
-            print(f"[{model_name}] verified={verified}, distance={distance}, threshold={threshold}")
-    except Exception as e:
-        print(f"[ArcFace] Similarity check failed: {e}")
-    os.remove(temp_frame_path)
+# Compare all detected faces in the video to yusifnew.jpg using ArcFace, print the highest similarity found
+if emotions:
+    temp_frame_path = "_temp_face_for_similarity.jpg"
+    best_similarity = -1
+    best_distance = None
+    best_verified = None
+    best_idx = -1
+    best_threshold = None
+    for idx, (emotion, age, gender, race) in enumerate(zip(emotions, ages + [None]*(len(emotions)-len(ages)), genders, races)):
+        # Only compare if a face was detected (emotion != 'unknown')
+        if emotion == 'unknown':
+            continue
+        # Rewind video to get the frame
+        cap = cv2.VideoCapture(video_path)
+        frame_num = (idx + 1) * frame_skip
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+        ret, frame = cap.read()
+        cap.release()
+        if not ret:
+            continue
+        cv2.imwrite(temp_frame_path, frame)
+        try:
+            with open(os.devnull, 'w') as fnull, contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
+                verification = DeepFace.verify(temp_frame_path, "yusifnew.jpg", enforce_detection=False, model_name="ArcFace")
+            distance = verification.get("distance", None)
+            threshold = verification.get("threshold", None)
+            if distance is not None and threshold is not None:
+                try:
+                    similarity_pct = max(0, (float(threshold) - float(distance)) / float(threshold) * 100)
+                except Exception:
+                    similarity_pct = 0
+                if similarity_pct > best_similarity:
+                    best_similarity = similarity_pct
+                    best_distance = distance
+                    best_verified = verification.get("verified", False)
+                    best_idx = idx
+                    best_threshold = threshold
+        except Exception as e:
+            continue
+    if os.path.exists(temp_frame_path):
+        os.remove(temp_frame_path)
+    if best_similarity >= 0:
+        print(f"[ArcFace] Highest similarity: {best_similarity:.1f}%, distance={best_distance}, verified={best_verified}, threshold={best_threshold}")
+    else:
+        print("No valid face frames for similarity check.")
 else:
     print("No face detected in video for similarity check.")
