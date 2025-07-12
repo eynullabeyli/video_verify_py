@@ -4,4 +4,9 @@ services:
     build: .
     ports:
       - "8000:8000"
-    restart: unless-stopped 
+    restart: unless-stopped
+    volumes:
+      - whisper-model-cache:/root/.cache
+
+volumes:
+  whisper-model-cache: 
