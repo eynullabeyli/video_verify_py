@@ -5,6 +5,7 @@ import sys
 import os
 import contextlib
 import time
+from datetime import datetime
 
 # Set video source: 0 for webcam or provide a video file path
 video_path = 'yusif.mp4'  # Use video file instead of webcam
@@ -17,22 +18,26 @@ races = []
 first_face_frame = None
 
 frame_count = 0
-frame_skip = 10  # Analyze every 10th frame for much faster processing
+frame_skip = 1  # Analyze every frame for maximum accuracy
+max_frames = 11  # Only process the first 11 frames
 
 start_time = time.time()
+start_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 while True:
+    if frame_count >= max_frames:
+        break
     ret, frame = cap.read()
     if not ret:
         break
 
     frame_count += 1
     if frame_count % frame_skip != 0:
-        # Show frame without analysis
-        cv2.imshow("DeepFace Attribute Analysis", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
         continue
+
+    # Print progress every 50 frames
+    if frame_count % 50 == 0:
+        print(f"Processed {frame_count} frames...")
 
     # Analyze frame for available DeepFace actions
     try:
@@ -63,40 +68,10 @@ while True:
     except Exception as e:
         summary = f"error: {e}"
 
-    # Show only the last result on the frame
-    cv2.putText(frame, summary, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-    # print(summary)  # Remove this line to avoid printing every frame
-
-    cv2.imshow("DeepFace Attribute Analysis", frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    # (No GUI code)
 
 cap.release()
 cv2.destroyAllWindows()
-
-# Calculate and print elapsed time
-elapsed_time = time.time() - start_time
-
-# Print summary of all results
-if emotions:
-    most_common_emotion = Counter(emotions).most_common(1)[0][0]
-else:
-    most_common_emotion = 'unknown'
-if ages:
-    avg_age = round(sum(ages) / len(ages), 1)
-else:
-    avg_age = 'unknown'
-if genders:
-    most_common_gender = Counter(genders).most_common(1)[0][0]
-else:
-    most_common_gender = 'unknown'
-if races:
-    most_common_race = Counter(races).most_common(1)[0][0]
-else:
-    most_common_race = 'unknown'
-
-print(f"Summary: {most_common_emotion}, {avg_age}, {most_common_gender}, {most_common_race}")
-print(f"Total elapsed time: {elapsed_time:.2f} seconds")
 
 # Compare all detected faces in the video to yusifnew.jpg using ArcFace, print the highest similarity found
 if emotions:
@@ -143,5 +118,11 @@ if emotions:
         print(f"[ArcFace] Highest similarity: {best_similarity:.1f}%, distance={best_distance}, verified={best_verified}, threshold={best_threshold}")
     else:
         print("No valid face frames for similarity check.")
+    end_time = time.time()
+    end_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    elapsed_time = end_time - start_time
+    print(f"Start time: {start_time_str}")
+    print(f"End time:   {end_time_str}")
+    print(f"Total elapsed time: {elapsed_time:.2f} seconds")
 else:
     print("No face detected in video for similarity check.")
