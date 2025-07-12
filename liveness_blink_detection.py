@@ -6,10 +6,20 @@ import contextlib
 import time
 from datetime import datetime
 import uuid
+import mimetypes
 
 # Set video source and reference image
+
 video_path = 'yusif.mp4'
-reference_image = 'yusifnew.jpg'
+reference_image = 'yusiftest.jpg'
+
+# Check if input files exist
+if not os.path.isfile(video_path):
+    print(f"Error: Video file not found: {video_path}")
+    sys.exit(1)
+if not os.path.isfile(reference_image):
+    print(f"Error: Reference image not found: {reference_image}")
+    sys.exit(1)
 
 start_time_dt = datetime.now()
 start_time = time.time()
@@ -34,10 +44,16 @@ best_verified = None
 best_idx = -1
 best_threshold = None
 
-# Prepare tmp directory and temp file name
+# Prepare tmp directory and temp file name with extension from reference image mime type
+mime_type, encoding = mimetypes.guess_type(reference_image)
+if mime_type:
+    ext = mimetypes.guess_extension(mime_type) or '.jpg'
+else:
+    ext = '.jpg'
+
 tmp_dir = 'tmp'
 os.makedirs(tmp_dir, exist_ok=True)
-temp_frame_path = os.path.join(tmp_dir, f"{uuid.uuid4()}.jpg")
+temp_frame_path = os.path.join(tmp_dir, f"{uuid.uuid4()}{ext}")
 live_face_count = 0
 total_sampled = len(frame_indices)
 
