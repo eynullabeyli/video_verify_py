@@ -8,10 +8,22 @@ import mimetypes
 
 app = FastAPI()
 
-@app.post("/liveness-and-similarity-check")
+@app.post(
+    "/liveness-and-similarity-check",
+    summary="Liveness and Similarity Check",
+    description="Upload a video file and a reference image. The video_file must be a video type (e.g., mp4, avi), and the reference_image must be an image type (e.g., jpg, png). The service will check for liveness and face similarity."
+)
 async def liveness_and_similarity_check(
-    video_file: UploadFile = File(...),
-    reference_image: UploadFile = File(...)
+    video_file: UploadFile = File(
+        ..., 
+        description="Video file (must be a video type, e.g., mp4, avi)",
+        openapi_extra={"accept": "video/*"}
+    ),
+    reference_image: UploadFile = File(
+        ..., 
+        description="Reference image (must be an image type, e.g., jpg, png)",
+        openapi_extra={"accept": "image/*"}
+    )
 ):
     # Validate file types
     video_mime = video_file.content_type
