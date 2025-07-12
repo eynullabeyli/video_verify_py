@@ -98,7 +98,7 @@ else:
 print(f"Summary: {most_common_emotion}, {avg_age}, {most_common_gender}, {most_common_race}")
 print(f"Total elapsed time: {elapsed_time:.2f} seconds")
 
-# Similarity check with image.jpg
+# Similarity check with image.jpg using only ArcFace
 if first_face_frame is not None:
     temp_frame_path = "_temp_first_face.jpg"
     cv2.imwrite(temp_frame_path, first_face_frame)
@@ -107,16 +107,18 @@ if first_face_frame is not None:
             verification = DeepFace.verify(temp_frame_path, "image.jpg", enforce_detection=False, model_name="ArcFace")
         verified = verification.get("verified", False)
         distance = verification.get("distance", None)
-        model_name = verification.get("model", "VGG-Face")
-        threshold = verification.get("threshold", 0.4)
-        # Convert distance to similarity percentage (simple scale: 1.0 = 0%, 0.0 = 100%)
-        if distance is not None:
-            similarity_pct = max(0, 1 - distance) * 100
-            print(f"Similarity with image.jpg: verified={verified}, distance={distance}, similarity={similarity_pct:.1f}%, model={model_name}, threshold={threshold}")
+        model_name = verification.get("model", "ArcFace")
+        threshold = verification.get("threshold", None)
+        if distance is not None and threshold is not None:
+            try:
+                similarity_pct = max(0, (float(threshold) - float(distance)) / float(threshold) * 100)
+            except Exception:
+                similarity_pct = 0
+            print(f"[{model_name}] verified={verified}, distance={distance}, similarity={similarity_pct:.1f}%, threshold={threshold}")
         else:
-            print(f"Similarity with image.jpg: verified={verified}, distance={distance}")
+            print(f"[{model_name}] verified={verified}, distance={distance}, threshold={threshold}")
     except Exception as e:
-        print(f"Similarity check failed: {e}")
+        print(f"[ArcFace] Similarity check failed: {e}")
     os.remove(temp_frame_path)
 else:
     print("No face detected in video for similarity check.")
