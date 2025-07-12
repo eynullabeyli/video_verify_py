@@ -15,6 +15,14 @@ start_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 cap = cv2.VideoCapture(video_path)
 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+fps = cap.get(cv2.CAP_PROP_FPS)
+
+# Calculate frame indices: one per second
+if fps > 0:
+    num_seconds = int(total_frames // fps)
+    frame_indices = [int(i * fps) for i in range(num_seconds)]
+else:
+    frame_indices = list(range(total_frames))
 
 # Prepare for liveness and similarity checks
 live_face_detected = False
@@ -25,16 +33,16 @@ best_idx = -1
 best_threshold = None
 temp_frame_path = "_temp_face_for_similarity.jpg"
 live_face_count = 0
-frame_count = 0
+total_sampled = len(frame_indices)
 
-while True:
+for idx, frame_num in enumerate(frame_indices):
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
     ret, frame = cap.read()
     if not ret:
-        break
-    frame_count += 1
-    # Print progress every 50 frames
-    if frame_count % 50 == 0:
-        print(f"Processed {frame_count} of {total_frames} frames...")
+        continue
+    # Print progress every 5 frames
+    if (idx + 1) % 5 == 0:
+        print(f"Processed {idx + 1} of {total_sampled} sampled frames...")
     # Check for face presence (liveness proxy)
     try:
         with open(os.devnull, 'w') as fnull, contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
@@ -59,7 +67,7 @@ while True:
                     best_similarity = similarity_pct
                     best_distance = distance
                     best_verified = verification.get("verified", False)
-                    best_idx = frame_count - 1
+                    best_idx = frame_num
                     best_threshold = threshold
         except Exception as e:
             continue
@@ -73,8 +81,8 @@ end_time = time.time()
 end_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 elapsed_time = end_time - start_time
 
-if total_frames > 0:
-    liveness_percentage = (live_face_count / total_frames) * 100
+if total_sampled > 0:
+    liveness_percentage = (live_face_count / total_sampled) * 100
 else:
     liveness_percentage = 0
 
