@@ -104,13 +104,15 @@ if first_face_frame is not None:
     cv2.imwrite(temp_frame_path, first_face_frame)
     try:
         with open(os.devnull, 'w') as fnull, contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
-            verification = DeepFace.verify(temp_frame_path, "image.jpg", enforce_detection=False)
+            verification = DeepFace.verify(temp_frame_path, "image.jpg", enforce_detection=False, model_name="ArcFace")
         verified = verification.get("verified", False)
         distance = verification.get("distance", None)
+        model_name = verification.get("model", "VGG-Face")
+        threshold = verification.get("threshold", 0.4)
         # Convert distance to similarity percentage (simple scale: 1.0 = 0%, 0.0 = 100%)
         if distance is not None:
             similarity_pct = max(0, 1 - distance) * 100
-            print(f"Similarity with image.jpg: verified={verified}, distance={distance}, similarity={similarity_pct:.1f}%")
+            print(f"Similarity with image.jpg: verified={verified}, distance={distance}, similarity={similarity_pct:.1f}%, model={model_name}, threshold={threshold}")
         else:
             print(f"Similarity with image.jpg: verified={verified}, distance={distance}")
     except Exception as e:
