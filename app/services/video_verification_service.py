@@ -58,6 +58,7 @@ def video_verification(video_path, reference_image):
 
     # --- Audio extraction and transcription ---
     transcription = None
+    detected_language = None
     try:
         audio_path = video_path + ".mp3"
         (
@@ -67,13 +68,15 @@ def video_verification(video_path, reference_image):
             .overwrite_output()
             .run(quiet=True)
         )
-        model = whisper.load_model("base")
-        result = model.transcribe(audio_path, language='az')
+        model = whisper.load_model("large")
+        result = model.transcribe(audio_path, language='az', task='transcribe')
         transcription = result.get("text", None)
+        detected_language = result.get("language", None)
         if os.path.exists(audio_path):
             os.remove(audio_path)
     except Exception as e:
         transcription = None
+        detected_language = None
     # --- End audio extraction and transcription ---
 
     for idx, frame_num in enumerate(frame_indices):
@@ -135,8 +138,9 @@ def video_verification(video_path, reference_image):
             "start_time": start_time_str,
             "end_time": end_time_str,
             "elapsed_time": f"{elapsed_time:.2f} seconds",
-            "transcription": transcription
+            "transcription": transcription,
+            "transcription_language": detected_language
         }
         return result
     else:
-        return {"error": "No valid face frames for similarity check.", "transcription": transcription} 
+        return {"error": "No valid face frames for similarity check.", "transcription": transcription, "transcription_language": detected_language} 
