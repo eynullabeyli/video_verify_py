@@ -5,6 +5,7 @@ import shutil
 import os
 import uuid
 import mimetypes
+from typing import Optional
 
 app = FastAPI(
     title="Video Verification API",
@@ -15,7 +16,7 @@ app = FastAPI(
 @app.post(
     "/video-verification-check",
     summary="Video Verification (Liveness, Similarity, Transcription)",
-    description="Upload a video file and a reference image. The video_file must be a video type (e.g., mp4, avi), and the reference_image must be an image type (e.g., jpg, png). The service will check for liveness, face similarity, and transcribe the video.",
+    description="Upload a video file and a reference image. Optionally, provide reference text for transcription similarity check. The service will check for liveness, face similarity, transcribe the video, and compare transcription to the reference text.",
     tags=["Video Verification"]
 )
 async def video_verification_check(
@@ -28,6 +29,10 @@ async def video_verification_check(
         ..., 
         description="Reference image (must be an image type, e.g., jpg, png)",
         openapi_extra={"accept": "image/*"}
+    ),
+    transcribe_reference: Optional[str] = File(
+        default="Mən Nicat Soltanov kredit almaq istəyirəm",
+        description="Optional reference text for transcription similarity check."
     )
 ):
     # Validate file types
@@ -50,7 +55,7 @@ async def video_verification_check(
         shutil.copyfileobj(reference_image.file, f)
 
     # Call the service for video verification
-    result = video_verification(video_path, ref_path)
+    result = video_verification(video_path, ref_path, transcribe_reference)
 
     # Clean up uploaded files
     os.remove(video_path)

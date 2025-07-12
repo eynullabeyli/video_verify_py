@@ -8,11 +8,13 @@ import uuid
 import mimetypes
 import ffmpeg
 import whisper
+from difflib import SequenceMatcher
 
-def video_verification(video_path, reference_image):
+def video_verification(video_path, reference_image, transcribe_reference=None):
     """
     Perform video verification: liveness check, face similarity, and transcription on the given video and reference image.
-    Returns a dictionary with similarity, distance, verified, threshold, liveness percentage, timing info, and transcription.
+    If transcribe_reference is provided, also compute transcription similarity.
+    Returns a dictionary with similarity, distance, verified, threshold, liveness percentage, timing info, transcription, and transcription similarity.
     """
     # Check if input files exist
     if not os.path.isfile(video_path):
@@ -79,6 +81,11 @@ def video_verification(video_path, reference_image):
         detected_language = None
     # --- End audio extraction and transcription ---
 
+    transcription_similarity = None
+    if transcribe_reference and transcription:
+        matcher = SequenceMatcher(None, transcription.strip().lower(), transcribe_reference.strip().lower())
+        transcription_similarity = round(matcher.ratio() * 100, 1)
+
     for idx, frame_num in enumerate(frame_indices):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
         ret, frame = cap.read()
@@ -139,8 +146,9 @@ def video_verification(video_path, reference_image):
             "end_time": end_time_str,
             "elapsed_time": f"{elapsed_time:.2f} seconds",
             "transcription": transcription,
-            "transcription_language": detected_language
+            "transcription_language": detected_language,
+            "transcription_similarity": f"{transcription_similarity}%" if transcription_similarity is not None else None
         }
         return result
     else:
-        return {"error": "No valid face frames for similarity check.", "transcription": transcription, "transcription_language": detected_language} 
+        return {"error": "No valid face frames for similarity check.", "transcription": transcription, "transcription_language": detected_language, "transcription_similarity": f"{transcription_similarity}%" if transcription_similarity is not None else None} 
