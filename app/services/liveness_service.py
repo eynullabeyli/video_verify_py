@@ -6,11 +6,13 @@ import time
 from datetime import datetime
 import uuid
 import mimetypes
+import ffmpeg
+import whisper
 
 def liveness_and_similarity(video_path, reference_image):
     """
     Perform liveness and similarity check on the given video and reference image.
-    Returns a dictionary with similarity, distance, verified, threshold, liveness percentage, and timing info.
+    Returns a dictionary with similarity, distance, verified, threshold, liveness percentage, timing info, and transcription.
     """
     # Check if input files exist
     if not os.path.isfile(video_path):
@@ -53,6 +55,26 @@ def liveness_and_similarity(video_path, reference_image):
     temp_frame_path = os.path.join(tmp_dir, f"{uuid.uuid4()}{ext}")
     live_face_count = 0
     total_sampled = len(frame_indices)
+
+    # --- Audio extraction and transcription ---
+    transcription = None
+    try:
+        audio_path = video_path + ".mp3"
+        (
+            ffmpeg
+            .input(video_path)
+            .output(audio_path, format='mp3', acodec='mp3', ac=1, ar='16000')
+            .overwrite_output()
+            .run(quiet=True)
+        )
+        model = whisper.load_model("base")
+        result = model.transcribe(audio_path)
+        transcription = result.get("text", None)
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
+    except Exception as e:
+        transcription = None
+    # --- End audio extraction and transcription ---
 
     for idx, frame_num in enumerate(frame_indices):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
@@ -112,8 +134,9 @@ def liveness_and_similarity(video_path, reference_image):
             "liveness": f"{liveness_percentage:.1f}%",
             "start_time": start_time_str,
             "end_time": end_time_str,
-            "elapsed_time": f"{elapsed_time:.2f} seconds"
+            "elapsed_time": f"{elapsed_time:.2f} seconds",
+            "transcription": transcription
         }
         return result
     else:
-        return {"error": "No valid face frames for similarity check."} 
+        return {"error": "No valid face frames for similarity check.", "transcription": transcription} 
