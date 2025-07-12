@@ -10,8 +10,8 @@ import mimetypes
 
 # Set video source and reference image
 
-video_path = 'yusif.mp4'
-reference_image = 'yusiftest.jpg'
+video_path = 'assets/yusif.mp4'
+reference_image = 'assets/yusiftest.jpg'
 
 # Check if input files exist
 if not os.path.isfile(video_path):
