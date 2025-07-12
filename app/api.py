@@ -6,12 +6,17 @@ import os
 import uuid
 import mimetypes
 
-app = FastAPI()
+app = FastAPI(
+    title="Liveness and Similarity API",
+    description="API for liveness and face similarity checks using video and reference image uploads.",
+    version="1.0.0"
+)
 
 @app.post(
     "/liveness-and-similarity-check",
     summary="Liveness and Similarity Check",
-    description="Upload a video file and a reference image. The video_file must be a video type (e.g., mp4, avi), and the reference_image must be an image type (e.g., jpg, png). The service will check for liveness and face similarity."
+    description="Upload a video file and a reference image. The video_file must be a video type (e.g., mp4, avi), and the reference_image must be an image type (e.g., jpg, png). The service will check for liveness and face similarity.",
+    tags=["Liveness and Similarity"]
 )
 async def liveness_and_similarity_check(
     video_file: UploadFile = File(
