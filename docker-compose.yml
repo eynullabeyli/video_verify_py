@@ -18,6 +18,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    cpuset: "0-10"  # Allow use of all 11 CPU cores (detected from host)
 
   nginx:
     image: nginx:alpine
