@@ -28,6 +28,7 @@ services:
       - "8000:80"  # Expose Nginx on host port 8000
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx-static:/usr/share/nginx/html:ro
     networks:
       - app-network
     healthcheck:
