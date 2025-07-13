@@ -19,7 +19,7 @@ app = FastAPI(
 )
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
+def global_exception_handler(request, exc):
     logging.error(f"Unhandled error: {exc}\n{traceback.format_exc()}")
     return JSONResponse(
         status_code=500,
@@ -32,7 +32,7 @@ async def global_exception_handler(request, exc):
     description="Upload a video file and a reference image. Optionally, provide reference text for transcription similarity check. The service will check for liveness, face similarity, transcribe the video, and compare transcription to the reference text.",
     tags=["Video Verification"]
 )
-async def video_verification_check(
+def video_verification_check(
     video_file: UploadFile = File(
         ..., 
         description="Video file (must be a video type, e.g., mp4, avi)",
@@ -59,9 +59,9 @@ async def video_verification_check(
         logging.error("[API] Invalid reference_image type: %s", image_mime)
         raise HTTPException(status_code=400, detail="reference_image must be an image type.")
 
-    # Read uploaded files into memory
-    video_bytes = await video_file.read()
-    image_bytes = await reference_image.read()
+    # Read uploaded files into memory (synchronously)
+    video_bytes = video_file.file.read()
+    image_bytes = reference_image.file.read()
     logging.info(f"[API] Read files into memory: video={len(video_bytes)} bytes, image={len(image_bytes)} bytes")
 
     # Call the service for video verification (pass bytes instead of file paths)
