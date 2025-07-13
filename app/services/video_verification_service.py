@@ -66,7 +66,7 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None):
                 .overwrite_output()
                 .run(quiet=True)
             )
-            model = whisper.load_model("large")
+            model = whisper.load_model("medium")
             result = model.transcribe(audio_path, language='az', task='transcribe')
             transcription = result.get("text", None)
             detected_language = result.get("language", None)
@@ -79,7 +79,10 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None):
 
         transcription_similarity = None
         if transcribe_reference and transcription:
-            matcher = SequenceMatcher(None, transcription.strip().lower(), transcribe_reference.strip().lower())
+            # Remove periods (dots) and commas from both strings before comparison
+            transcription_clean = transcription.strip().lower().replace('.', '').replace(',', '')
+            reference_clean = transcribe_reference.strip().lower().replace('.', '').replace(',', '')
+            matcher = SequenceMatcher(None, transcription_clean, reference_clean)
             transcription_similarity = round(matcher.ratio() * 100, 1)
 
         for idx, frame_num in enumerate(frame_indices):
