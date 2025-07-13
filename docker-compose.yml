@@ -1,6 +1,7 @@
 version: '3.8'
 services:
   video-verification-api:
+    # For production, scale containers for concurrency instead of using --workers
     build: .
     ports:
       - "8000:8000"

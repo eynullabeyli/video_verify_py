@@ -20,5 +20,8 @@ COPY . .
 # Expose the port
 EXPOSE 8000
 
-# Run the API
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
+# Production: single process per container (recommended)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# For development, you can use the following (uncomment to use):
+# CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"] 
