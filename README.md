@@ -36,7 +36,7 @@ This API provides video liveness check, face similarity, and Azerbaijani video t
 3. Use the `/video-verification-check` endpoint to upload a video, reference image, and (optionally) a reference text for transcription similarity.
 
 ## Notes
-- The API uses the Whisper `large` model for best transcription accuracy (downloads on first use).
+- The API uses the Whisper `medium` model for best transcription accuracy (downloads on first use).
 - Default transcription reference: `Mən Nicat Soltanov kredit almaq istəyirəm`
 - All temp files are cleaned up automatically.
 
