@@ -3,13 +3,44 @@ services:
   video-verification-api:
     # For production, scale containers for concurrency instead of using --workers
     build: .
-    ports:
-      - "8000:8000"
     restart: unless-stopped
     volumes:
       - whisper-model-cache:/root/.cache
       - app:/app
+      - tmp:/tmp
+    networks:
+      - app-network
+    deploy:
+      replicas: 3  # Set the default scale (works with Docker Swarm)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  nginx:
+    image: nginx:alpine
+    depends_on:
+      - video-verification-api
+    ports:
+      - "8000:80"  # Expose Nginx on host port 8000
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   whisper-model-cache: 
-  app: 
+  app:
+  tmp:
+
+networks:
+  app-network:
+    driver: bridge 

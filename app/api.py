@@ -74,3 +74,8 @@ def video_verification_check(
         raise HTTPException(status_code=400, detail=result["error"])
     logging.info("[API] Returning response to client.")
     return JSONResponse(content=result) 
+
+@app.get("/health", tags=["Health"], summary="Health Check", description="Returns status ok if the service is healthy.")
+def health_check():
+    """Health check endpoint for container and load balancer health monitoring."""
+    return {"status": "ok"} 
