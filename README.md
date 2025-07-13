@@ -15,8 +15,8 @@ This API provides video liveness check, face similarity, and Azerbaijani video t
 ## Installation
 1. Clone the repository:
    ```sh
-   git clone <your-repo-url>
-   cd <your-repo-folder>
+   git clone https://github.com/eynullabeyli/video_verify_py.git
+   cd video_verify_py
    ```
 2. Install Python dependencies:
    ```sh
