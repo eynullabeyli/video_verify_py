@@ -46,10 +46,14 @@ This project is production-ready with Docker Compose and Nginx for load balancin
 
 ### Build and Start (with Scaling)
 ```sh
-docker compose up -d --scale video-verification-api=3
+docker compose down  # Stop and remove any running containers
+
+docker compose up -d --scale video-verification-api=3  # Build and start with 3 FastAPI containers
 ```
 - Nginx will be available at [http://localhost:8000](http://localhost:8000)
 - You can adjust the number of FastAPI containers by changing the `--scale` value.
+
+**Note:** The Docker container is explicitly configured to use only CPU and RAM. GPU usage is disabled by setting the environment variable `CUDA_VISIBLE_DEVICES=""` inside the container. No GPU or CUDA drivers are required or used.
 
 ### Health Checks
 - The API exposes a `/health` endpoint for container and load balancer health monitoring.
@@ -75,4 +79,4 @@ docker compose up -d --scale video-verification-api=3
 
 ---
 
-**For any issues or improvements, please open an issue or pull request.** 
+**For any issues or improvements, please open an issue or pull request.**
