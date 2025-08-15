@@ -7,10 +7,12 @@ This API provides video liveness check, face similarity, and Azerbaijani video t
 - Face similarity check with reference image
 - Video-to-text transcription (Azerbaijani, Whisper large model)
 - Transcription similarity check with reference text
+- **Metal GPU acceleration support** (macOS with Apple Silicon)
 
 ## Requirements
 - Python 3.8+
 - ffmpeg (system binary)
+- **For Metal GPU acceleration:** macOS with Apple Silicon (M1/M2/M3) and tensorflow-metal
 
 ## Installation
 1. Clone the repository:
@@ -35,10 +37,18 @@ This API provides video liveness check, face similarity, and Azerbaijani video t
 2. Open your browser at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) for Swagger UI.
 3. Use the `/video-verification-check` endpoint to upload a video, reference image, and (optionally) a reference text for transcription similarity.
 
+## Metal GPU Testing
+To verify Metal GPU support is working correctly:
+```sh
+python test_metal_gpu.py
+```
+This will test TensorFlow Metal installation, GPU detection, and basic GPU operations.
+
 ## Notes
-- The API uses the Whisper `medium` model for best transcription accuracy (downloads on first use).
+- The API uses the Whisper `large-v3` model for best transcription accuracy (downloads on first use).
 - Default transcription reference: `Mən Nicat Soltanov kredit almaq istəyirəm`
 - All temp files are cleaned up automatically.
+- **Metal GPU acceleration:** The system automatically detects and uses Metal GPU if available on macOS, providing significant performance improvements for DeepFace and Whisper operations.
 
 ## Docker Deployment
 
