@@ -165,7 +165,10 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
     """
     Perform video verification: liveness check, face similarity, and transcription on the given video and reference image.
     If transcribe_reference is provided, also compute transcription similarity.
-    Returns a dictionary with similarity, distance, verified, threshold, liveness percentage, timing info, transcription, and transcription similarity.
+    Returns a dictionary with:
+    - similarity: best single-frame similarity to the reference image (image-level)
+    - same_person_similarity_percentage: percentage of face-detected frames verified as the same person (video-level)
+    - distance, verified, threshold (for the best frame), liveness percentage, timing info, transcription, and transcription similarity.
     If debug is True, prints debug info and includes debug_info in the result.
     """
     if debug:
@@ -272,6 +275,7 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
         best_verified = None
         best_idx = -1
         best_threshold = None
+        verified_face_count = 0
 
         tmp_dir = tempfile.gettempdir()
         temp_frame_path = os.path.join(tmp_dir, f"{uuid.uuid4()}.jpg")
@@ -314,6 +318,8 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
                     best_verified = result['verified']
                     best_idx = result['frame_num']
                     best_threshold = result['threshold']
+                if result['verified']:
+                    verified_face_count += 1
 
         # Wait for audio processing to complete
         audio_thread.join()
@@ -356,8 +362,13 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
         if best_similarity >= 0:
             if debug:
                 print("[DEBUG] Returning successful result.")
+            if live_face_count > 0:
+                same_person_similarity_percentage = round((verified_face_count / live_face_count) * 100, 1)
+            else:
+                same_person_similarity_percentage = None
             result = {
                 "similarity": f"{best_similarity:.1f}%",
+                "same_person_similarity_percentage": f"{same_person_similarity_percentage}%" if same_person_similarity_percentage is not None else None,
                 "distance": best_distance,
                 "verified": best_verified,
                 "threshold": best_threshold,
@@ -376,6 +387,7 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
                     "frame_indices": frame_indices,
                     "best_idx": best_idx,
                     "live_face_count": live_face_count,
+                    "verified_face_count": verified_face_count,
                     "total_sampled": total_sampled,
                     "liveness_percentage": liveness_percentage,
                     "transcription": transcription,
@@ -386,13 +398,20 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
         else:
             if debug:
                 print("[DEBUG] No valid face frames for similarity check. Returning error result.")
-            result = {"error": "No valid face frames for similarity check.", "transcription": transcription, "transcription_language": detected_language, "transcription_similarity": f"{transcription_similarity}%" if transcription_similarity is not None else None}
+            result = {
+                "error": "No valid face frames for similarity check.",
+                "same_person_similarity_percentage": None,
+                "transcription": transcription,
+                "transcription_language": detected_language,
+                "transcription_similarity": f"{transcription_similarity}%" if transcription_similarity is not None else None
+            }
             if debug:
                 debug_info.update({
                     "video_path": video_path,
                     "reference_image_path": reference_image_path,
                     "frame_indices": frame_indices,
                     "live_face_count": live_face_count,
+                    "verified_face_count": verified_face_count,
                     "total_sampled": total_sampled,
                     "liveness_percentage": liveness_percentage,
                     "transcription": transcription,
