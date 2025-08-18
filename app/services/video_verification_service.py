@@ -12,6 +12,7 @@ from difflib import SequenceMatcher
 import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import re
 
 # Metal GPU support
 try:
@@ -110,6 +111,50 @@ METAL_GPU_ACTIVE = configure_metal_gpu()
 # Log detailed GPU information
 print("[INFO] GPU Configuration:")
 print(get_gpu_info())
+
+def get_negative_words(language_code: str):
+    """
+    Return a set of negative/undesired words for a given language.
+    Supports Azerbaijani (az) and English (en). Falls back to a union.
+    """
+    az_words = {
+        "yox", "deyil", "yalan", "pis", "imtina", "rədd", "rəd", "qadağa",
+        "nifrət", "narazı", "qəzəb", "problem", "xeyr", "məqbul", "deyil",
+        "mümkün", "deyil", "qeyri-mümkün", "təhlükə", "təhdid", "aldatma", "saxta"
+    }
+    en_words = {
+        "no", "not", "false", "bad", "deny", "reject", "forbidden", "hate",
+        "angry", "problem", "danger", "threat", "fraud", "fake", "invalid"
+    }
+    if language_code and language_code.lower().startswith("az"):
+        return az_words
+    if language_code and language_code.lower().startswith("en"):
+        return en_words
+    return az_words | en_words
+
+def detect_negative_words(text: str, language_code: str = "az"):
+    """
+    Simple lexicon + light regex detection of negative words in the transcribed text.
+    Returns a dict with matches, count, total_tokens, and ratio percentage.
+    """
+    if not text:
+        return {"matches": [], "count": 0, "total_tokens": 0, "ratio_pct": 0.0}
+    lowered = text.lower()
+    cleaned = lowered
+    for ch in [".", ",", "!", "?", ";", ":", "(", ")", "[", "]", "{", "}", "\"", "'", "-"]:
+        cleaned = cleaned.replace(ch, " ")
+    tokens = [t for t in cleaned.split() if t]
+    lexicon = get_negative_words(language_code or "az")
+    matches = [t for t in tokens if t in lexicon]
+    # Light-weight handling of common Azerbaijani negation forms
+    if language_code and language_code.lower().startswith("az"):
+        patterns = [r"^istəmir", r"^olma", r"^olmaz$", r"^yoxdur$", r"^yoxdu$"]
+        regex_hits = [t for t in tokens if any(re.match(p, t) for p in patterns)]
+        for t in regex_hits:
+            if t not in matches:
+                matches.append(t)
+    ratio = (len(matches) / len(tokens) * 100.0) if tokens else 0.0
+    return {"matches": matches, "count": len(matches), "total_tokens": len(tokens), "ratio_pct": ratio}
 
 def process_frame_parallel(frame_data):
     """
@@ -331,6 +376,7 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
 
         # --- Transcription similarity calculation ---
         transcription_similarity = None
+        negative_words_info = {"matches": [], "count": 0, "total_tokens": 0, "ratio_pct": 0.0}
         if transcribe_reference and transcription:
             if debug:
                 print("[DEBUG] Calculating transcription similarity...")
@@ -343,6 +389,13 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
         else:
             if debug:
                 print("[DEBUG] Skipping transcription similarity calculation.")
+        # Negative words detection regardless of reference text
+        if transcription:
+            if debug:
+                print("[DEBUG] Detecting negative words in transcription...")
+            negative_words_info = detect_negative_words(transcription, detected_language or 'az')
+            if debug:
+                print(f"[DEBUG] Negative words: {negative_words_info}")
 
         end_time_dt = datetime.now()
         end_time = time.time()
@@ -378,7 +431,11 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
                 "elapsed_time": f"{elapsed_time:.2f} seconds",
                 "transcription": transcription,
                 "transcription_language": detected_language,
-                "transcription_similarity": f"{transcription_similarity}%" if transcription_similarity is not None else None
+                "transcription_similarity": f"{transcription_similarity}%" if transcription_similarity is not None else None,
+                "contains_negative_words": negative_words_info["count"] > 0,
+                "negative_words_detected": negative_words_info["matches"],
+                "negative_word_count": negative_words_info["count"],
+                "negative_word_ratio": f"{negative_words_info['ratio_pct']:.1f}%"
             }
             if debug:
                 debug_info.update({
@@ -391,7 +448,8 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
                     "total_sampled": total_sampled,
                     "liveness_percentage": liveness_percentage,
                     "transcription": transcription,
-                    "transcription_similarity": transcription_similarity
+                    "transcription_similarity": transcription_similarity,
+                    "negative_words_info": negative_words_info
                 })
                 result["debug_info"] = debug_info
             return result
@@ -403,7 +461,11 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
                 "same_person_similarity_percentage": None,
                 "transcription": transcription,
                 "transcription_language": detected_language,
-                "transcription_similarity": f"{transcription_similarity}%" if transcription_similarity is not None else None
+                "transcription_similarity": f"{transcription_similarity}%" if transcription_similarity is not None else None,
+                "contains_negative_words": (negative_words_info["count"] > 0) if transcription else None,
+                "negative_words_detected": negative_words_info["matches"] if transcription else None,
+                "negative_word_count": negative_words_info["count"] if transcription else None,
+                "negative_word_ratio": (f"{negative_words_info['ratio_pct']:.1f}%" if transcription else None)
             }
             if debug:
                 debug_info.update({
@@ -415,7 +477,8 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
                     "total_sampled": total_sampled,
                     "liveness_percentage": liveness_percentage,
                     "transcription": transcription,
-                    "transcription_similarity": transcription_similarity
+                    "transcription_similarity": transcription_similarity,
+                    "negative_words_info": negative_words_info
                 })
                 result["debug_info"] = debug_info
             return result
