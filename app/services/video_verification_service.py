@@ -1,7 +1,6 @@
 import cv2
 from deepface import DeepFace
 import os
-import contextlib
 import time
 from datetime import datetime
 import uuid
@@ -13,6 +12,9 @@ import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Metal GPU support
 try:
@@ -22,13 +24,13 @@ try:
     gpu_devices = tf.config.list_physical_devices('GPU')
     if gpu_devices:
         METAL_AVAILABLE = True
-        print(f"[INFO] Metal GPU support detected - Found {len(gpu_devices)} GPU device(s)")
+        logger.info("Metal GPU support detected - Found %s GPU device(s)", len(gpu_devices))
     else:
         METAL_AVAILABLE = False
-        print("[INFO] No GPU devices found - Metal GPU not available")
+        logger.info("No GPU devices found - Metal GPU not available")
 except ImportError:
     METAL_AVAILABLE = False
-    print("[INFO] TensorFlow not available - Metal GPU support not available")
+    logger.info("TensorFlow not available - Metal GPU support not available")
 
 # Global Whisper model cache
 _whisper_model = None
@@ -42,9 +44,9 @@ def get_whisper_model():
     with _whisper_model_lock:
         if _whisper_model is None:
             if METAL_GPU_ACTIVE:
-                print("[INFO] Loading Whisper model with Metal GPU acceleration")
+                logger.info("Loading Whisper model with Metal GPU acceleration")
             else:
-                print("[INFO] Loading Whisper model on CPU")
+                logger.info("Loading Whisper model on CPU")
             _whisper_model = whisper.load_model("large-v3")
         return _whisper_model
 
@@ -77,40 +79,40 @@ def configure_metal_gpu():
     Returns True if Metal GPU is configured, False otherwise.
     """
     if not METAL_AVAILABLE:
-        print("[INFO] Metal GPU not available - using CPU")
+        logger.info("Metal GPU not available - using CPU")
         return False
     
     try:
         # Check if Metal GPU is available
         metal_devices = tf.config.list_physical_devices('GPU')
         if metal_devices:
-            print(f"[INFO] Found {len(metal_devices)} Metal GPU device(s):")
+            logger.info("Found %s Metal GPU device(s):", len(metal_devices))
             for device in metal_devices:
-                print(f"[INFO]   - {device.name}")
+                logger.info("  - %s", device.name)
             
             # Enable memory growth to avoid allocating all GPU memory at once
             for device in metal_devices:
                 tf.config.experimental.set_memory_growth(device, True)
-                print(f"[INFO] Enabled memory growth for {device.name}")
+                logger.info("Enabled memory growth for %s", device.name)
             
             # Set TensorFlow to use Metal GPU
             tf.config.set_visible_devices(metal_devices, 'GPU')
-            print("[INFO] TensorFlow configured to use Metal GPU")
+            logger.info("TensorFlow configured to use Metal GPU")
             return True
         else:
-            print("[INFO] No Metal GPU devices found - using CPU")
+            logger.info("No Metal GPU devices found - using CPU")
             return False
     except Exception as e:
-        print(f"[WARNING] Error configuring Metal GPU: {e}")
-        print("[INFO] Falling back to CPU")
+        logger.warning("Error configuring Metal GPU: %s", e)
+        logger.info("Falling back to CPU")
         return False
 
 # Configure Metal GPU on module import
 METAL_GPU_ACTIVE = configure_metal_gpu()
 
 # Log detailed GPU information
-print("[INFO] GPU Configuration:")
-print(get_gpu_info())
+logger.info("GPU Configuration:")
+logger.info(get_gpu_info())
 
 def get_negative_words(language_code: str):
     """
@@ -165,8 +167,7 @@ def process_frame_parallel(frame_data):
     
     try:
         # Check for face presence (liveness proxy)
-        with open(os.devnull, 'w') as fnull, contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
-            analysis = DeepFace.analyze(frame, actions=["age"], enforce_detection=True)
+        analysis = DeepFace.analyze(frame, actions=["age"], enforce_detection=True)
         
         if isinstance(analysis, list):
             analysis = analysis[0]
@@ -174,8 +175,7 @@ def process_frame_parallel(frame_data):
         # Face detected, proceed to verification
         cv2.imwrite(temp_frame_path, frame)
         
-        with open(os.devnull, 'w') as fnull, contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
-            verification = DeepFace.verify(temp_frame_path, reference_image_path, enforce_detection=False, model_name="ArcFace")
+        verification = DeepFace.verify(temp_frame_path, reference_image_path, enforce_detection=False, model_name="ArcFace")
         
         distance = verification.get("distance", None)
         threshold = verification.get("threshold", None)
@@ -217,30 +217,30 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
     If debug is True, prints debug info and includes debug_info in the result.
     """
     if debug:
-        print("[DEBUG] Entered video_verification function.")
-        print(f"[DEBUG] video_bytes length: {len(video_bytes)}")
-        print(f"[DEBUG] image_bytes length: {len(image_bytes)}")
-        print(f"[DEBUG] transcribe_reference: {transcribe_reference}")
-        print(f"[DEBUG] Metal GPU active: {METAL_GPU_ACTIVE}")
+        logger.debug("Entered video_verification function.")
+        logger.debug("video_bytes length: %s", len(video_bytes))
+        logger.debug("image_bytes length: %s", len(image_bytes))
+        logger.debug("transcribe_reference: %s", transcribe_reference)
+        logger.debug("Metal GPU active: %s", METAL_GPU_ACTIVE)
     
     # Log Metal GPU status
     if METAL_GPU_ACTIVE:
-        print("[INFO] Using Metal GPU for video verification")
+        logger.info("Using Metal GPU for video verification")
     else:
-        print("[INFO] Using CPU for video verification")
+        logger.info("Using CPU for video verification")
     
     # Write video_bytes to a temporary file for OpenCV and ffmpeg
     with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as video_tmp:
         video_tmp.write(video_bytes)
         video_path = video_tmp.name
     if debug:
-        print(f"[DEBUG] Video temp file created at: {video_path}")
+        logger.debug("Video temp file created at: %s", video_path)
     # Write image_bytes to a temporary file for DeepFace.verify (needs file path)
     with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as img_tmp:
         img_tmp.write(image_bytes)
         reference_image_path = img_tmp.name
     if debug:
-        print(f"[DEBUG] Reference image temp file created at: {reference_image_path}")
+        logger.debug("Reference image temp file created at: %s", reference_image_path)
 
     debug_info = {}
     try:
@@ -248,18 +248,18 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
         start_time = time.time()
         start_time_str = start_time_dt.strftime('%Y-%m-%d %H:%M:%S')
         if debug:
-            print(f"[DEBUG] Start time: {start_time_str}")
-            print("[DEBUG] Opening video with OpenCV...")
+            logger.debug("Start time: %s", start_time_str)
+            logger.debug("Opening video with OpenCV...")
 
         cap = cv2.VideoCapture(video_path)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         fps = cap.get(cv2.CAP_PROP_FPS)
         if debug:
-            print(f"[DEBUG] OpenCV video opened. Total frames: {total_frames}, FPS: {fps}")
+            logger.debug("OpenCV video opened. Total frames: %s, FPS: %s", total_frames, fps)
 
         # Calculate frame indices: optimized sampling (one per 2 seconds instead of 1 second)
         if debug:
-            print("[DEBUG] Calculating frame indices for sampling...")
+            logger.debug("Calculating frame indices for sampling...")
         if fps > 0:
             num_seconds = int(total_frames // fps)
             # Sample every 2 seconds instead of every second for better performance
@@ -270,7 +270,7 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
         else:
             frame_indices = list(range(0, total_frames, 2))
         if debug:
-            print(f"[DEBUG] Frame indices to sample: {frame_indices}")
+            logger.debug("Frame indices to sample: %s", frame_indices)
 
         # --- Audio extraction and transcription (parallel with video processing) ---
         transcription = None
@@ -281,7 +281,7 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
             try:
                 audio_path = video_path + ".mp3"
                 if debug:
-                    print(f"[DEBUG] Extracting audio from video to: {audio_path}")
+                    logger.debug("Extracting audio from video to: %s", audio_path)
                 (
                     ffmpeg
                     .input(video_path)
@@ -290,24 +290,24 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
                     .run(quiet=True)
                 )
                 if debug:
-                    print("[DEBUG] Audio extraction complete. Transcribing audio...")
+                    logger.debug("Audio extraction complete. Transcribing audio...")
                 
                 model = get_whisper_model()  # Use cached model
                 result = model.transcribe(audio_path, language='az', task='transcribe')
                 transcription = result.get("text", None)
                 detected_language = result.get("language", None)
                 if debug:
-                    print(f"[DEBUG] Transcription result: {transcription}")
-                    print(f"[DEBUG] Detected language: {detected_language}")
+                    logger.debug("Transcription result: %s", transcription)
+                    logger.debug("Detected language: %s", detected_language)
                 if os.path.exists(audio_path):
                     os.remove(audio_path)
                     if debug:
-                        print(f"[DEBUG] Audio temp file removed: {audio_path}")
+                        logger.debug("Audio temp file removed: %s", audio_path)
             except Exception as e:
                 transcription = None
                 detected_language = None
                 if debug:
-                    print(f"[DEBUG] Audio extraction/transcription error: {e}")
+                    logger.debug("Audio extraction/transcription error: %s", e)
         
         # Start audio processing in parallel
         audio_thread = threading.Thread(target=process_audio)
@@ -327,19 +327,19 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
         live_face_count = 0
         total_sampled = len(frame_indices)
         if debug:
-            print(f"[DEBUG] Temp frame path for face: {temp_frame_path}")
-            print(f"[DEBUG] Total sampled frames: {total_sampled}")
+            logger.debug("Temp frame path for face: %s", temp_frame_path)
+            logger.debug("Total sampled frames: %s", total_sampled)
 
         # Prepare frame data for parallel processing
         frame_data_list = []
         for idx, frame_num in enumerate(frame_indices):
             if debug:
-                print(f"[DEBUG] Sampling frame {idx+1}/{total_sampled} (frame number: {frame_num})...")
+                logger.debug("Sampling frame %s/%s (frame number: %s)...", idx+1, total_sampled, frame_num)
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
             ret, frame = cap.read()
             if not ret:
                 if debug:
-                    print(f"[DEBUG] Could not read frame {frame_num}")
+                    logger.debug("Could not read frame %s", frame_num)
                 continue
             frame_data_list.append((frame_num, frame, reference_image_path, temp_frame_path))
 
@@ -347,7 +347,7 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
 
         # Process frames sequentially to avoid Metal GPU threading issues
         if debug:
-            print("[DEBUG] Starting sequential frame processing...")
+            logger.debug("Starting sequential frame processing...")
         
         for frame_data in frame_data_list:
             result = process_frame_parallel(frame_data)
@@ -357,7 +357,7 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
                 
                 if result['similarity_pct'] > best_similarity:
                     if debug:
-                        print(f"[DEBUG] Frame {result['frame_num']} is new best match (similarity_pct={result['similarity_pct']})")
+                        logger.debug("Frame %s is new best match (similarity_pct=%s)", result['frame_num'], result['similarity_pct'])
                     best_similarity = result['similarity_pct']
                     best_distance = result['distance']
                     best_verified = result['verified']
@@ -372,49 +372,49 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
         if os.path.exists(temp_frame_path):
             os.remove(temp_frame_path)
             if debug:
-                print(f"[DEBUG] Temp frame file removed: {temp_frame_path}")
+                logger.debug("Temp frame file removed: %s", temp_frame_path)
 
         # --- Transcription similarity calculation ---
         transcription_similarity = None
         negative_words_info = {"matches": [], "count": 0, "total_tokens": 0, "ratio_pct": 0.0}
         if transcribe_reference and transcription:
             if debug:
-                print("[DEBUG] Calculating transcription similarity...")
+                logger.debug("Calculating transcription similarity...")
             transcription_clean = transcription.strip().lower().replace('.', '').replace(',', '')
             reference_clean = transcribe_reference.strip().lower().replace('.', '').replace(',', '')
             matcher = SequenceMatcher(None, transcription_clean, reference_clean)
             transcription_similarity = round(matcher.ratio() * 100, 1)
             if debug:
-                print(f"[DEBUG] Transcription similarity: {transcription_similarity}%")
+                logger.debug("Transcription similarity: %s%%", transcription_similarity)
         else:
             if debug:
-                print("[DEBUG] Skipping transcription similarity calculation.")
+                logger.debug("Skipping transcription similarity calculation.")
         # Negative words detection regardless of reference text
         if transcription:
             if debug:
-                print("[DEBUG] Detecting negative words in transcription...")
+                logger.debug("Detecting negative words in transcription...")
             negative_words_info = detect_negative_words(transcription, detected_language or 'az')
             if debug:
-                print(f"[DEBUG] Negative words: {negative_words_info}")
+                logger.debug("Negative words: %s", negative_words_info)
 
         end_time_dt = datetime.now()
         end_time = time.time()
         end_time_str = end_time_dt.strftime('%Y-%m-%d %H:%M:%S')
         elapsed_time = end_time - start_time
         if debug:
-            print(f"[DEBUG] End time: {end_time_str}")
-            print(f"[DEBUG] Elapsed time: {elapsed_time:.2f} seconds")
+            logger.debug("End time: %s", end_time_str)
+            logger.debug("Elapsed time: %.2f seconds", elapsed_time)
 
         if total_sampled > 0:
             liveness_percentage = (live_face_count / total_sampled) * 100
         else:
             liveness_percentage = 0
         if debug:
-            print(f"[DEBUG] Liveness percentage: {liveness_percentage}% ({live_face_count}/{total_sampled})")
+            logger.debug("Liveness percentage: %s%% (%s/%s)", liveness_percentage, live_face_count, total_sampled)
 
         if best_similarity >= 0:
             if debug:
-                print("[DEBUG] Returning successful result.")
+                logger.debug("Returning successful result.")
             if live_face_count > 0:
                 same_person_similarity_percentage = round((verified_face_count / live_face_count) * 100, 1)
             else:
@@ -455,7 +455,7 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
             return result
         else:
             if debug:
-                print("[DEBUG] No valid face frames for similarity check. Returning error result.")
+                logger.debug("No valid face frames for similarity check. Returning error result.")
             result = {
                 "error": "No valid face frames for similarity check.",
                 "same_person_similarity_percentage": None,
@@ -484,15 +484,15 @@ def video_verification(video_bytes, image_bytes, transcribe_reference=None, debu
             return result
     finally:
         if debug:
-            print("[DEBUG] Cleaning up temp files...")
+            logger.debug("Cleaning up temp files...")
         # Clean up temp files
         if os.path.exists(video_path):
             os.remove(video_path)
             if debug:
-                print(f"[DEBUG] Video temp file removed: {video_path}")
+                logger.debug("Video temp file removed: %s", video_path)
         if os.path.exists(reference_image_path):
             os.remove(reference_image_path)
             if debug:
-                print(f"[DEBUG] Reference image temp file removed: {reference_image_path}")
+                logger.debug("Reference image temp file removed: %s", reference_image_path)
         if debug:
-            print("[DEBUG] Exiting video_verification function.") 
+            logger.debug("Exiting video_verification function.")
