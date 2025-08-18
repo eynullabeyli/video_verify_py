@@ -9,6 +9,7 @@ from typing import Optional
 import logging
 import traceback
 from io import BytesIO
+import json
 
 logging.basicConfig(level=logging.INFO)
 
@@ -72,6 +73,7 @@ def video_verification_check(
     if "error" in result:
         logging.error(f"[API] Service returned error: {result['error']}")
         raise HTTPException(status_code=400, detail=result["error"])
+    logging.info("[API] Response body: %s", json.dumps(result, ensure_ascii=False))
     logging.info("[API] Returning response to client.")
     return JSONResponse(content=result) 
 
